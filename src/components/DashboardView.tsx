@@ -34,7 +34,8 @@ export default function DashboardView({
   onOpenNewMovement,
   onOpenNewRequisition,
 }: DashboardViewProps) {
-  if (loading || !kpis) {
+  // If explicitly loading and no data yet, show loading spinner
+  if (loading && !kpis) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500">
         <RefreshCw className="w-8 h-8 animate-spin text-[#2c5aa0] mb-3" />
@@ -43,30 +44,34 @@ export default function DashboardView({
     );
   }
 
-  const {
-    totalInventoryValue,
-    totalMaterialsCount,
-    criticalItemsCount,
-    pendingRequisitionsCount,
-    stockTurnoverRate,
-    criticalMaterials,
-    topMovedMaterials,
-    abcClassification,
-    monthlyMovements,
-    sectorConsumption,
-  } = kpis;
+  // Safe KPI defaults so rendering never throws
+  const totalInventoryValue = kpis?.totalInventoryValue ?? 0;
+  const totalMaterialsCount = kpis?.totalMaterialsCount ?? 0;
+  const criticalItemsCount = kpis?.criticalItemsCount ?? 0;
+  const pendingRequisitionsCount = kpis?.pendingRequisitionsCount ?? 0;
+  const stockTurnoverRate = kpis?.stockTurnoverRate ?? 0;
+  const criticalMaterials = kpis?.criticalMaterials ?? [];
+  const topMovedMaterials = kpis?.topMovedMaterials ?? [];
+  const monthlyMovements = kpis?.monthlyMovements ?? [];
+  const sectorConsumption = kpis?.sectorConsumption ?? [];
+  const abcClassification = kpis?.abcClassification ?? {
+    classA: { count: 0, totalValue: 0, percentageValue: 0 },
+    classB: { count: 0, totalValue: 0, percentageValue: 0 },
+    classC: { count: 0, totalValue: 0, percentageValue: 0 },
+    items: []
+  };
 
   // Find max monthly value for chart scale
   const maxMonthlyVal = Math.max(
-    ...monthlyMovements.map(m => Math.max(m.entradas_val, m.saidas_val)),
+    ...monthlyMovements.map(m => Math.max(m?.entradas_val || 0, m?.saidas_val || 0)),
     1000
   );
 
   // Find max sector value for horizontal bars
-  const maxSectorVal = Math.max(...sectorConsumption.map(s => s.total_value), 100);
+  const maxSectorVal = Math.max(...sectorConsumption.map(s => s?.total_value || 0), 100);
 
   // Find max top moved item quantity
-  const maxTopMovedQty = Math.max(...topMovedMaterials.map(m => m.total_quantity), 1);
+  const maxTopMovedQty = Math.max(...topMovedMaterials.map(m => m?.total_quantity || 0), 1);
 
   return (
     <div className="space-y-6">
@@ -231,19 +236,19 @@ export default function DashboardView({
           <div className="space-y-1">
             <div className="h-4 w-full bg-slate-100 rounded-full flex overflow-hidden">
               <div
-                style={{ width: `${abcClassification.classA.percentageValue}%` }}
+                style={{ width: `${abcClassification?.classA?.percentageValue || 0}%` }}
                 className="bg-[#1a3a52] h-full"
-                title={`Classe A: ${abcClassification.classA.percentageValue}% do valor`}
+                title={`Classe A: ${abcClassification?.classA?.percentageValue || 0}% do valor`}
               />
               <div
-                style={{ width: `${abcClassification.classB.percentageValue}%` }}
+                style={{ width: `${abcClassification?.classB?.percentageValue || 0}%` }}
                 className="bg-[#2c5aa0] h-full"
-                title={`Classe B: ${abcClassification.classB.percentageValue}% do valor`}
+                title={`Classe B: ${abcClassification?.classB?.percentageValue || 0}% do valor`}
               />
               <div
-                style={{ width: `${abcClassification.classC.percentageValue}%` }}
+                style={{ width: `${abcClassification?.classC?.percentageValue || 0}%` }}
                 className="bg-[#f4c430] h-full"
-                title={`Classe C: ${abcClassification.classC.percentageValue}% do valor`}
+                title={`Classe C: ${abcClassification?.classC?.percentageValue || 0}% do valor`}
               />
             </div>
             <div className="flex justify-between text-[10px] text-slate-400 px-1 font-mono">
@@ -264,15 +269,15 @@ export default function DashboardView({
                 </span>
                 <div>
                   <div className="text-xs font-bold text-slate-800">Itens Estratégicos</div>
-                  <div className="text-[11px] text-slate-500">{abcClassification.classA.count} materiais cadastrados</div>
+                  <div className="text-[11px] text-slate-500">{abcClassification?.classA?.count ?? 0} materiais cadastrados</div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-xs font-bold text-[#1a3a52]">
-                  {formatCurrency(abcClassification.classA.totalValue)}
+                  {formatCurrency(abcClassification?.classA?.totalValue || 0)}
                 </div>
                 <div className="text-[10px] text-emerald-600 font-bold">
-                  {abcClassification.classA.percentageValue}% do valor
+                  {abcClassification?.classA?.percentageValue ?? 0}% do valor
                 </div>
               </div>
             </div>
@@ -285,15 +290,15 @@ export default function DashboardView({
                 </span>
                 <div>
                   <div className="text-xs font-bold text-slate-800">Itens Intermediários</div>
-                  <div className="text-[11px] text-slate-500">{abcClassification.classB.count} materiais cadastrados</div>
+                  <div className="text-[11px] text-slate-500">{abcClassification?.classB?.count ?? 0} materiais cadastrados</div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-xs font-bold text-[#2c5aa0]">
-                  {formatCurrency(abcClassification.classB.totalValue)}
+                  {formatCurrency(abcClassification?.classB?.totalValue || 0)}
                 </div>
                 <div className="text-[10px] text-blue-600 font-bold">
-                  {abcClassification.classB.percentageValue}% do valor
+                  {abcClassification?.classB?.percentageValue ?? 0}% do valor
                 </div>
               </div>
             </div>
@@ -306,15 +311,15 @@ export default function DashboardView({
                 </span>
                 <div>
                   <div className="text-xs font-bold text-slate-800">Itens de Apoio</div>
-                  <div className="text-[11px] text-slate-500">{abcClassification.classC.count} materiais cadastrados</div>
+                  <div className="text-[11px] text-slate-500">{abcClassification?.classC?.count ?? 0} materiais cadastrados</div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-xs font-bold text-slate-700">
-                  {formatCurrency(abcClassification.classC.totalValue)}
+                  {formatCurrency(abcClassification?.classC?.totalValue || 0)}
                 </div>
                 <div className="text-[10px] text-amber-700 font-bold">
-                  {abcClassification.classC.percentageValue}% do valor
+                  {abcClassification?.classC?.percentageValue ?? 0}% do valor
                 </div>
               </div>
             </div>

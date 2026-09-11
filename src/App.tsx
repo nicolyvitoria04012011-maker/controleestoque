@@ -49,30 +49,58 @@ export default function App() {
   const [quickMovementType, setQuickMovementType] = useState<'ENTRADA' | 'SAIDA'>('ENTRADA');
   const [selectedKardexMaterialId, setSelectedKardexMaterialId] = useState<number | null>(null);
 
-  // Fetch all initial data
+  // Fetch all initial data with resilient handling
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [matsRes, movsRes, secsRes, reqsRes, settRes, statsRes] = await Promise.all([
-        fetch('/api/materials').then(r => r.json()),
-        fetch('/api/movements').then(r => r.json()),
-        fetch('/api/sectors').then(r => r.json()),
-        fetch('/api/requisitions').then(r => r.json()),
-        fetch('/api/settings').then(r => r.json()),
-        fetch('/api/stats').then(r => r.json()),
+      const safeFetch = async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} em ${url}`);
+        }
+        return res.json();
+      };
+
+      const [matsRes, movsRes, secsRes, reqsRes, settRes, statsRes] = await Promise.allSettled([
+        safeFetch('/api/materials'),
+        safeFetch('/api/movements'),
+        safeFetch('/api/sectors'),
+        safeFetch('/api/requisitions'),
+        safeFetch('/api/settings'),
+        safeFetch('/api/stats'),
       ]);
 
-      if (Array.isArray(matsRes)) setMaterials(matsRes);
-      if (Array.isArray(movsRes)) setMovements(movsRes);
-      if (Array.isArray(secsRes)) setSectors(secsRes);
-      if (Array.isArray(reqsRes)) setRequisitions(reqsRes);
-      if (settRes && settRes.technical_responsible) setSettings(settRes);
-      if (statsRes && !statsRes.error) setStats(statsRes);
+      if (matsRes.status === 'fulfilled' && Array.isArray(matsRes.value)) {
+        setMaterials(matsRes.value);
+      }
+      if (movsRes.status === 'fulfilled' && Array.isArray(movsRes.value)) {
+        setMovements(movsRes.value);
+      }
+      if (secsRes.status === 'fulfilled' && Array.isArray(secsRes.value)) {
+        setSectors(secsRes.value);
+      }
+      if (reqsRes.status === 'fulfilled' && Array.isArray(reqsRes.value)) {
+        setRequisitions(reqsRes.value);
+      }
+      if (settRes.status === 'fulfilled' && settRes.value?.technical_responsible) {
+        setSettings(settRes.value);
+      }
+      if (statsRes.status === 'fulfilled' && statsRes.value && !statsRes.value.error) {
+        setStats(statsRes.value);
+      }
+
+      // Check if all core requests failed (true server down)
+      const allFailed = [matsRes, movsRes, secsRes, reqsRes, settRes, statsRes].every(
+        r => r.status === 'rejected'
+      );
+      if (allFailed) {
+        setError('Não foi possível conectar ao servidor de banco de dados. Tente recarregar a página.');
+      }
     } catch (err: any) {
       console.error('Error fetching data:', err);
-      setError('Não foi possível conectar ao servidor de banco de dados. Tente recarregar a página.');
+      setError('Houve uma falha momentânea de comunicação. Clique para tentar novamente.');
     } finally {
       setLoading(false);
     }
